@@ -1,0 +1,1114 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SAM | SISTEMA TOTAL</title>
+    <link href="https://fonts.googleapis.com/css2?family=Exo+2:wght@900&family=Montserrat:wght@300;400;700;800&display=swap" rel="stylesheet">
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root { --accent:#FF7A00; --dark:#000; --gray:#F2F2F7; --red:#FF3B30; --green:#28a745; --max-w:600px; }
+        * { box-sizing:border-box; font-family:'Montserrat',sans-serif; outline:none; -webkit-tap-highlight-color:transparent; }
+        html,body { margin:0; background:#FFF; height:100%; }
+        body { overflow:hidden; }
+
+        #screen-splash { height:100vh; display:flex; flex-direction:column; justify-content:center; align-items:center; background:#FFF; position:fixed; width:100%; z-index:5000; transition:opacity 0.5s; }
+        .logo-sam { font-family:'Exo 2',sans-serif; font-weight:900; font-size:clamp(48px,12vw,80px); padding-left:clamp(8px,2vw,15px); letter-spacing:clamp(8px,3vw,15px); color:#FF7A00; text-transform:uppercase; cursor:pointer; margin-bottom:20px; text-align:center; text-shadow:2px 2px 10px rgba(255,122,0,0.2); }
+        .grid-keys { display:grid; grid-template-columns:repeat(3,1fr); gap:clamp(10px,3vw,15px); width:clamp(220px,70vw,260px); margin:0 auto; }
+        .key { width:clamp(58px,18vw,70px); height:clamp(58px,18vw,70px); background:#f4f4f4; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:clamp(20px,5vw,24px); font-weight:700; color:#000; cursor:pointer; transition:0.2s; border:none; }
+        .key:active { background:#ddd; transform:scale(0.9); }
+        .pin-display { height:40px; font-size:clamp(28px,8vw,35px); color:var(--accent); letter-spacing:10px; margin-bottom:10px; text-align:center; }
+        .key.ok { background:var(--accent); color:white; font-size:16px; font-weight:900; }
+
+        .panel { display:none; position:fixed; inset:0; background:#F9F9F9; overflow-y:auto; overflow-x:hidden; padding-bottom:100px; -webkit-overflow-scrolling:touch; }
+        .panel-inner { max-width:var(--max-w); margin:0 auto; width:100%; }
+        .nav-top { background:#000; color:white; padding:clamp(12px,3vw,15px) clamp(15px,4vw,20px); display:flex; justify-content:space-between; align-items:center; position:sticky; top:0; z-index:100; font-size:clamp(11px,3vw,13px); font-weight:800; }
+        .header { background:var(--dark); color:#FFF; padding:clamp(25px,5vw,40px) clamp(15px,4vw,20px) clamp(20px,4vw,30px); border-radius:0 0 40px 40px; text-align:center; }
+
+        .card { background:#FFF; padding:clamp(14px,3vw,20px); border-radius:20px; margin:10px clamp(12px,3vw,18px); border:1px solid #EEE; display:flex; justify-content:space-between; align-items:center; box-shadow:0 4px 10px rgba(0,0,0,0.02); cursor:pointer; }
+        .status-dot { width:12px; height:12px; border-radius:50%; display:inline-block; margin-right:8px; flex-shrink:0; }
+
+        .hist-item { display:flex; justify-content:space-between; align-items:center; padding:10px 12px; border-radius:12px; margin-bottom:6px; background:#fff; cursor:pointer; border:1px solid #eee; transition:all 0.15s; }
+        .hist-item:active { background:#FFF3E0; transform:scale(0.98); }
+        .hist-item-left { font-size:12px; color:#555; flex:1; min-width:0; }
+        .hist-item-right { font-size:14px; font-weight:900; color:var(--green); margin-left:8px; white-space:nowrap; }
+        .hist-hint { font-size:9px; color:#bbb; font-weight:700; margin-top:2px; }
+
+        .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.9); z-index:9999; justify-content:center; align-items:flex-end; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); padding:0; }
+        @media(min-width:520px){ .modal{align-items:center;padding:15px;} .box{border-radius:35px!important;max-height:90vh!important;} }
+        .box { background:#FFF; width:100%; max-width:480px; padding:clamp(18px,4vw,25px); border-radius:35px 35px 0 0; max-height:92vh; overflow-y:auto; -webkit-overflow-scrolling:touch; }
+        label { font-size:10px; color:#888; font-weight:800; text-transform:uppercase; display:block; margin-top:12px; border-bottom:1px solid #EEE; padding-bottom:4px; }
+        input,select { width:100%; padding:clamp(11px,3vw,14px); margin:5px 0; border-radius:12px; border:1px solid #DDD; background:var(--gray); font-size:clamp(13px,3.5vw,15px); font-weight:600; -webkit-appearance:none; appearance:none; }
+        .info-row { display:flex; justify-content:space-between; padding:8px 0; font-size:clamp(12px,3vw,14px); border-bottom:1px solid #F9F9F9; gap:10px; }
+        .info-row span { color:#666; flex-shrink:0; }
+        .info-row b { text-align:right; word-break:break-word; }
+
+        .wa-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:10px; }
+        .wa-btn { background:#25D366; color:white; border:none; padding:clamp(8px,2vw,10px) 5px; border-radius:10px; font-size:clamp(8px,2vw,9px); font-weight:800; cursor:pointer; text-transform:uppercase; }
+        .hist-box { background:#F2F2F7; padding:10px; border-radius:15px; margin:10px 0; max-height:165px; overflow-y:auto; }
+
+        .btn-m { width:100%; padding:clamp(13px,3vw,16px); border-radius:15px; border:none; background:var(--accent); color:white; font-weight:900; cursor:pointer; margin-top:10px; font-size:clamp(13px,3vw,15px); }
+        .btn-exit { background:var(--red); color:white; border:none; padding:clamp(6px,2vw,8px) clamp(10px,3vw,15px); border-radius:10px; font-weight:800; font-size:clamp(10px,2.5vw,11px); cursor:pointer; }
+        .fab { position:fixed; bottom:clamp(20px,5vw,30px); right:clamp(15px,5vw,25px); background:var(--accent); color:white; width:clamp(58px,15vw,70px); height:clamp(58px,15vw,70px); border-radius:22px; border:none; font-size:clamp(32px,8vw,40px); box-shadow:0 10px 25px rgba(255,122,0,0.4); cursor:pointer; display:flex; align-items:center; justify-content:center; z-index:200; line-height:1; }
+
+        #notif-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:19999; justify-content:center; align-items:flex-end; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); }
+        @media(min-width:520px){ #notif-overlay{align-items:center;} #notif-box{border-radius:35px;} }
+        #notif-box { background:#fff; width:100%; max-width:480px; border-radius:35px 35px 0 0; padding:25px; max-height:88vh; overflow-y:auto; }
+        .notif-group-title { font-size:10px; font-weight:900; text-transform:uppercase; letter-spacing:2px; margin:14px 0 6px; border-bottom:1px solid #eee; padding-bottom:4px; }
+        .notif-cli-card { background:#F9F9F9; border-radius:12px; padding:12px 14px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; gap:10px; }
+        .notif-send-btn { background:#25D366; color:white; border:none; border-radius:9px; padding:8px 12px; font-size:10px; font-weight:900; cursor:pointer; white-space:nowrap; flex-shrink:0; }
+        .notif-send-btn.sent { background:#aaa; }
+
+        .notif-cfg-row { display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid #f0f0f0; gap:10px; }
+        .notif-cfg-row span { font-size:13px; font-weight:700; color:#333; flex:1; }
+        .notif-cfg-row input[type=number] { width:70px; text-align:center; flex-shrink:0; }
+
+        #sw-badge { display:inline-flex; align-items:center; gap:5px; background:#111; border-radius:20px; padding:4px 10px; font-size:10px; font-weight:800; color:#aaa; margin-top:8px; }
+        #sw-badge .dot { width:8px; height:8px; border-radius:50%; background:#555; }
+        #sw-badge.activo .dot { background:var(--green); }
+        #sw-badge.activo { color:var(--green); }
+
+        #cuota-preview { display:none; background:#FFF3E0; border-radius:12px; padding:12px; margin:8px 0; text-align:center; }
+        #m-abono-detalle .abono-header { background:var(--dark); border-radius:16px; padding:20px; text-align:center; margin-bottom:15px; }
+        #m-abono-detalle .abono-monto-display { font-size:40px; font-weight:900; color:var(--accent); }
+
+        #comprobante-wrap { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:99999; justify-content:center; align-items:center; padding:15px; backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); }
+        #comprobante-container { background:#fff; width:100%; max-width:400px; border-radius:20px; overflow:hidden; box-shadow:0 25px 60px rgba(0,0,0,0.5); }
+        #comprobante-canvas-box { width:100%; overflow:hidden; }
+        #comprobante-canvas-box canvas { width:100%!important; height:auto!important; display:block; }
+        .comp-actions { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; padding:12px; background:#fff; }
+        .comp-btn { padding:12px 6px; border-radius:12px; border:none; font-size:10px; font-weight:900; cursor:pointer; text-transform:uppercase; color:white; }
+        .comp-btn.descargar { background:var(--accent); }
+        .comp-btn.compartir { background:#25D366; }
+        .comp-btn.cerrar { background:#555; }
+
+        #recibo-visual { position:fixed; left:-9999px; top:0; width:360px; background:#fff; font-family:'Montserrat',sans-serif; }
+        .recibo-header { background:#000; color:#fff; padding:25px 20px 20px; text-align:center; }
+        .recibo-logo { font-family:'Exo 2',sans-serif; font-weight:900; font-size:42px; letter-spacing:10px; color:#FF7A00; }
+        .recibo-subtitle { font-size:9px; font-weight:800; color:#aaa; letter-spacing:3px; margin-top:4px; }
+        .recibo-body { padding:20px; }
+        .recibo-titulo { font-size:11px; font-weight:800; color:#888; text-transform:uppercase; letter-spacing:2px; border-bottom:2px solid #FF7A00; padding-bottom:6px; margin-bottom:15px; }
+        .recibo-fila { display:flex; justify-content:space-between; padding:6px 0; font-size:12px; border-bottom:1px solid #f0f0f0; }
+        .recibo-fila span { color:#777; font-weight:600; }
+        .recibo-fila b { color:#000; font-weight:800; text-align:right; max-width:55%; word-break:break-word; }
+        .recibo-monto-box { background:#000; border-radius:14px; padding:18px; text-align:center; margin:18px 0; }
+        .recibo-monto-label { font-size:9px; color:#888; font-weight:800; letter-spacing:2px; text-transform:uppercase; }
+        .recibo-monto-valor { font-size:36px; font-weight:900; color:#FF7A00; }
+        .recibo-saldo-box { background:#F9F9F9; border-radius:10px; padding:12px; text-align:center; margin-bottom:15px; }
+        .recibo-saldo-label { font-size:9px; color:#888; font-weight:800; letter-spacing:1px; }
+        .recibo-saldo-valor { font-size:20px; font-weight:900; color:#FF3B30; }
+        .recibo-footer { background:#F2F2F7; padding:12px 20px; text-align:center; font-size:9px; color:#aaa; font-weight:700; letter-spacing:1px; }
+        .recibo-firma { height:2px; background:linear-gradient(90deg,transparent,#FF7A00,transparent); }
+
+        #toast { position:fixed; bottom:110px; left:50%; transform:translateX(-50%); background:#000; color:#fff; padding:12px 24px; border-radius:30px; font-size:13px; font-weight:800; z-index:999999; opacity:0; transition:opacity 0.3s; pointer-events:none; white-space:nowrap; }
+        #toast.show { opacity:1; }
+
+        .toggle-wrap { display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-bottom:1px solid #f0f0f0; }
+        .toggle-wrap span { font-size:13px; font-weight:700; color:#333; flex:1; }
+        .toggle { position:relative; width:50px; height:28px; flex-shrink:0; }
+        .toggle input { opacity:0; width:0; height:0; }
+        .slider { position:absolute; inset:0; background:#ccc; border-radius:28px; cursor:pointer; transition:.3s; }
+        .slider:before { content:''; position:absolute; width:22px; height:22px; left:3px; bottom:3px; background:#fff; border-radius:50%; transition:.3s; }
+        input:checked + .slider { background:var(--accent); }
+        input:checked + .slider:before { transform:translateX(22px); }
+    </style>
+</head>
+<body>
+
+<!-- SPLASH -->
+<div id="screen-splash">
+    <div class="logo-sam" onclick="abrirTeclado(false)">SAM</div>
+    <div id="keypad-box" style="display:none;flex-direction:column;align-items:center;margin-top:20px">
+        <div id="mode-text" style="font-size:10px;font-weight:800;color:#888">ACCESO</div>
+        <div id="pin-dots" class="pin-display"></div>
+        <div class="grid-keys">
+            <button class="key" onclick="teclear(1)">1</button><button class="key" onclick="teclear(2)">2</button><button class="key" onclick="teclear(3)">3</button>
+            <button class="key" onclick="teclear(4)">4</button><button class="key" onclick="teclear(5)">5</button><button class="key" onclick="teclear(6)">6</button>
+            <button class="key" onclick="teclear(7)">7</button><button class="key" onclick="teclear(8)">8</button><button class="key" onclick="teclear(9)">9</button>
+            <button class="key" style="color:var(--red)" onclick="teclear('C')">C</button>
+            <button class="key" onclick="teclear(0)">0</button>
+            <button class="key ok" onclick="validar()">OK</button>
+        </div>
+        <label style="border:none;margin-top:20px">CERRAR SESIÓN EN:</label>
+        <select id="session-limit" style="width:160px;background:white">
+            <option value="60000">1 Minuto</option>
+            <option value="3600000" selected>1 Hora</option>
+            <option value="7200000">2 Horas</option>
+        </select>
+    </div>
+    <div style="position:absolute;bottom:0;width:100%;height:80px" onclick="abrirTeclado(true)"></div>
+</div>
+
+<!-- PANEL ADMIN -->
+<div id="p-admin" class="panel">
+    <div class="nav-top">ADMINISTRACIÓN
+        <button class="btn-exit" onclick="location.reload()">SALIR</button>
+    </div>
+    <div class="panel-inner" style="padding:20px">
+        <button class="btn-m" style="background:#000" onclick="openM('m-nuevo-u')">+ NUEVO COBRADOR</button>
+        <label>CONTROL DE PERSONAL</label>
+        <div id="lista-usuarios-admin"></div>
+    </div>
+</div>
+
+<!-- PANEL COBRADOR -->
+<div id="p-user" class="panel">
+    <div class="nav-top">
+        <span id="nom-u-nav">COBRADOR</span>
+        <div style="display:flex;gap:8px;align-items:center">
+            <button class="btn-exit" style="background:#333;cursor:pointer" onclick="openM('m-config-notif')">⚙ NOTIF</button>
+            <button class="btn-exit" onclick="location.reload()">SALIR</button>
+        </div>
+    </div>
+    <div class="panel-inner">
+        <div class="header">
+            <div style="font-size:10px;color:#AAA">TIEMPO ACTIVO: <span id="timer-display">00:00</span></div>
+            <div id="u-total" style="font-size:clamp(34px,10vw,45px);font-weight:900;color:var(--accent)">$ 0.00</div>
+            <div id="resumen-estados" style="font-size:11px;color:#AAA;margin-top:5px"></div>
+        </div>
+        <div id="lista-clientes"></div>
+    </div>
+    <button class="fab" onclick="openM('m-nuevo-cliente')">+</button>
+</div>
+
+<!-- MODAL DETALLE CLIENTE -->
+<div id="m-det-cliente" class="modal">
+    <div class="box">
+        <h2 id="det-cli-nom" style="color:var(--accent);margin:0 0 10px">CLIENTE</h2>
+        <div class="info-row"><span>Fecha Cobro:</span><b id="det-cli-fcobro">---</b></div>
+        <div class="info-row"><span>Producto / Guía:</span><b id="det-cli-prod">---</b></div>
+        <div class="info-row"><span>Dirección:</span><b id="det-cli-dir">---</b></div>
+        <div class="info-row"><span>Frecuencia:</span><b id="det-cli-frec">---</b></div>
+        <div class="info-row"><span>Cuota:</span><b id="det-cli-cuota" style="color:var(--accent)">---</b></div>
+        <div class="info-row" style="font-size:clamp(15px,4vw,18px)">
+            <span>Saldo Actual:</span><b id="det-cli-saldo" style="color:var(--red)">$ 0.00</b>
+        </div>
+        <label>NOTIFICACIONES WHATSAPP</label>
+        <div class="wa-grid">
+            <button class="wa-btn" onclick="enviarWA(1)">RECORDAR</button>
+            <button class="wa-btn" onclick="enviarWA(2)" style="background:#FF9500">PAGO HOY</button>
+            <button class="wa-btn" onclick="enviarWA(3)" style="background:var(--red)">ATRASADO</button>
+        </div>
+        <label>HISTORIAL DE ABONOS
+            <span style="font-size:9px;color:#bbb;font-weight:600;text-transform:none;border:none">
+                (toca para ver / editar)
+            </span>
+        </label>
+        <div id="det-cli-hist" class="hist-box"></div>
+        <label>REGISTRAR PAGO</label>
+        <input type="number" id="input-abono" placeholder="Monto Abono $" inputmode="decimal">
+        <button class="btn-m" onclick="registrarAbono()">REGISTRAR PAGO</button>
+        <button class="btn-m" style="background:var(--red)" onclick="eliminarClienteCompleto()">ELIMINAR DEUDA Y CLIENTE</button>
+        <button class="btn-m" style="background:none;color:#888" onclick="closeM()">CERRAR</button>
+    </div>
+</div>
+
+<!-- MODAL DETALLE ABONO (ver + editar) -->
+<div id="m-abono-detalle" class="modal">
+    <div class="box">
+        <div class="abono-header">
+            <div style="font-size:10px;color:#888;font-weight:800;letter-spacing:2px">PAGO REGISTRADO</div>
+            <div class="abono-monto-display" id="ad-monto-display">$ 0.00</div>
+            <div style="font-size:12px;color:#888;margin-top:4px" id="ad-fecha-display">---</div>
+            <div style="font-size:10px;color:#555;margin-top:2px" id="ad-num-display">---</div>
+        </div>
+        <div class="info-row"><span>Cliente:</span><b id="ad-cliente">---</b></div>
+        <div class="info-row"><span>Saldo después del pago:</span><b id="ad-saldo" style="color:var(--red)">---</b></div>
+        <label>ACCIONES</label>
+        <button class="btn-m" onclick="verComprobanteDesdeDetalle()">📄 VER COMPROBANTE</button>
+        <button class="btn-m" style="background:#25D366" onclick="reenviarWADesdeDetalle()">📲 REENVIAR POR WHATSAPP</button>
+        <label>EDITAR MONTO DEL ABONO</label>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:5px">
+            <input type="number" id="ad-nuevo-monto" placeholder="Nuevo monto $" inputmode="decimal" style="flex:1">
+            <button class="btn-m" style="width:auto;padding:13px 18px;margin:0;flex-shrink:0" onclick="guardarEdicionAbono()">GUARDAR</button>
+        </div>
+        <div style="background:#FFF3E0;border-radius:10px;padding:10px;margin-top:8px;font-size:11px;color:#888">
+            ⚠ Editar recalcula el saldo del cliente automáticamente.
+        </div>
+        <button class="btn-m" style="background:var(--red);margin-top:12px" onclick="eliminarAbonoIndividual()">🗑 ELIMINAR ESTE ABONO</button>
+        <button class="btn-m" style="background:none;color:#888" onclick="closeM()">CERRAR</button>
+    </div>
+</div>
+
+<!-- MODAL NUEVO CLIENTE -->
+<div id="m-nuevo-cliente" class="modal">
+    <div class="box">
+        <h3>NUEVA VENTA</h3>
+        <label>Nombre</label><input type="text" id="nc-nom" autocomplete="off">
+        <label>Producto / Guía</label><input type="text" id="nc-prod" autocomplete="off">
+        <label>WhatsApp</label>
+        <div style="display:flex;gap:5px">
+            <select id="nc-pref" style="width:90px">
+                <option value="593">+593</option>
+                <option value="57">+57</option>
+            </select>
+            <input type="number" id="nc-tel" style="flex:1" inputmode="tel">
+        </div>
+        <div style="display:flex;gap:10px">
+            <div style="flex:1"><label>Total $</label><input type="number" id="nc-tot" inputmode="decimal" oninput="calcularCuota()"></div>
+            <div style="flex:1"><label>Entrada $</label><input type="number" id="nc-ini" value="0" inputmode="decimal" oninput="calcularCuota()"></div>
+        </div>
+        <label>N° de Cuotas</label>
+        <input type="number" id="nc-ncuotas" placeholder="Ej: 12" inputmode="numeric" oninput="calcularCuota()">
+        <label>Frecuencia de Pago</label>
+        <select id="nc-frec" onchange="calcularCuota()">
+            <option>Diario</option><option>Semanal</option>
+            <option>Quincenal</option><option>Mensual</option>
+        </select>
+        <div id="cuota-preview">
+            <div style="font-size:10px;color:#888;font-weight:800">CUOTA CALCULADA</div>
+            <div id="cuota-valor" style="font-size:26px;font-weight:900;color:var(--accent)">$ 0.00</div>
+        </div>
+        <label>Dirección</label><input type="text" id="nc-dir" autocomplete="off">
+        <label>Fecha Primer Cobro</label><input type="date" id="nc-fecha">
+        <button class="btn-m" onclick="crearCli()">GUARDAR VENTA</button>
+        <button class="btn-m" style="background:none;color:#888" onclick="closeM()">CANCELAR</button>
+    </div>
+</div>
+
+<!-- MODAL CONFIG NOTIFICACIONES -->
+<div id="m-config-notif" class="modal">
+    <div class="box">
+        <h3 style="margin:0 0 4px">⚙ NOTIFICACIONES AUTOMÁTICAS</h3>
+        <p style="font-size:12px;color:#888;margin:0 0 8px">
+            Envía WhatsApp automáticamente aunque la app esté cerrada.
+        </p>
+        <div id="sw-badge"><span class="dot"></span><span id="sw-status-txt">Verificando...</span></div>
+        <div class="toggle-wrap" style="margin-top:14px">
+            <span>🔔 Activar notificaciones en segundo plano</span>
+            <label class="toggle">
+                <input type="checkbox" id="cfg-sw-activo" onchange="toggleSW()">
+                <span class="slider"></span>
+            </label>
+        </div>
+        <div class="notif-cfg-row">
+            <span>📅 Días antes para recordatorio</span>
+            <input type="number" id="cfg-dias-recuerdo" value="2" min="0" max="30" inputmode="numeric">
+        </div>
+        <div class="notif-cfg-row">
+            <span>✅ Aviso día de cobro</span>
+            <span style="font-size:12px;font-weight:700;color:var(--green);flex:0">Siempre activo</span>
+        </div>
+        <div class="notif-cfg-row">
+            <span>🔴 Días de atraso para notificar</span>
+            <input type="number" id="cfg-dias-atraso" value="1" min="1" max="30" inputmode="numeric">
+        </div>
+        <label style="margin-top:14px">MODO AL ABRIR APP</label>
+        <select id="cfg-modo-notif">
+            <option value="preguntar">Preguntar antes de enviar</option>
+            <option value="auto">Enviar automáticamente</option>
+            <option value="solo-ver">Solo mostrar lista</option>
+        </select>
+        <label>HORA DE ENVÍO AUTOMÁTICO</label>
+        <input type="time" id="cfg-hora-envio" value="08:00">
+        <button class="btn-m" onclick="guardarConfigNotif()">GUARDAR CONFIGURACIÓN</button>
+        <button class="btn-m" style="background:#555" onclick="probarNotifAhora()">🧪 PROBAR AHORA</button>
+        <button class="btn-m" style="background:none;color:#888" onclick="closeM()">CANCELAR</button>
+    </div>
+</div>
+<!-- PANEL NOTIFICACIONES PENDIENTES -->
+<div id="notif-overlay">
+    <div id="notif-box">
+        <h2 style="margin:0 0 4px;color:#000">📲 Notificaciones Pendientes</h2>
+        <p id="notif-subtitle" style="font-size:12px;color:#888;margin:0 0 12px"></p>
+        <div id="notif-lista"></div>
+        <button class="btn-m" id="btn-enviar-todas" onclick="enviarTodas()" style="margin-top:15px">
+            ENVIAR TODAS POR WHATSAPP
+        </button>
+        <button class="btn-m" style="background:#555" onclick="cerrarNotif()">OMITIR POR AHORA</button>
+    </div>
+</div>
+
+<!-- MODAL EDITAR USUARIO -->
+<div id="m-edit-u" class="modal">
+    <div class="box">
+        <h3>EDITAR PERFIL</h3>
+        <label>Nombre</label><input type="text" id="ed-u-nom">
+        <label>PIN Acceso</label><input type="number" id="ed-u-pin">
+        <label>Estado</label>
+        <select id="ed-u-status">
+            <option value="activo">ACTIVO</option>
+            <option value="desactivado">DESACTIVADO</option>
+        </select>
+        <label>Vigencia Hasta</label><input type="date" id="ed-u-vence">
+        <button class="btn-m" onclick="actualizarU()">GUARDAR CAMBIOS</button>
+        <button class="btn-m" style="background:var(--red)" onclick="eliminarU()">ELIMINAR</button>
+        <button class="btn-m" style="background:none;color:#888" onclick="closeM()">CANCELAR</button>
+    </div>
+</div>
+
+<!-- MODAL NUEVO USUARIO -->
+<div id="m-nuevo-u" class="modal">
+    <div class="box">
+        <h3>NUEVO COBRADOR</h3>
+        <label>Nombre</label><input type="text" id="nu-nom">
+        <label>PIN</label><input type="number" id="nu-pin">
+        <label>Vigencia</label><input type="date" id="nu-vence">
+        <button class="btn-m" onclick="crearU()">CREAR</button>
+        <button class="btn-m" style="background:none;color:#888" onclick="closeM()">CANCELAR</button>
+    </div>
+</div>
+
+<!-- COMPROBANTE OVERLAY -->
+<div id="comprobante-wrap">
+    <div id="comprobante-container">
+        <div id="comprobante-canvas-box"></div>
+        <div class="comp-actions">
+            <button class="comp-btn descargar" onclick="descargarComprobante()">⬇ BAJAR</button>
+            <button class="comp-btn compartir" onclick="compartirWhatsApp()">📲 WA</button>
+            <button class="comp-btn cerrar" onclick="cerrarComprobante()">✕ CERRAR</button>
+        </div>
+    </div>
+</div>
+
+<!-- RECIBO VISUAL (off-screen para html2canvas) -->
+<div id="recibo-visual">
+    <div class="recibo-header">
+        <div class="recibo-logo">SAM</div>
+        <div class="recibo-subtitle">COMPROBANTE DE PAGO</div>
+    </div>
+    <div class="recibo-firma"></div>
+    <div class="recibo-body">
+        <div class="recibo-titulo">DETALLE DEL PAGO</div>
+        <div class="recibo-fila"><span>Cobrador:</span><b id="r-cobrador">---</b></div>
+        <div class="recibo-fila"><span>Cliente:</span><b id="r-cliente">---</b></div>
+        <div class="recibo-fila"><span>Producto / Guía:</span><b id="r-prod">---</b></div>
+        <div class="recibo-fila"><span>Fecha:</span><b id="r-fecha">---</b></div>
+        <div class="recibo-fila"><span>Hora:</span><b id="r-hora">---</b></div>
+        <div class="recibo-fila"><span>N° Comprobante:</span><b id="r-num">---</b></div>
+        <div class="recibo-monto-box">
+            <div class="recibo-monto-label">MONTO PAGADO</div>
+            <div class="recibo-monto-valor" id="r-monto">$ 0.00</div>
+        </div>
+        <div class="recibo-saldo-box">
+            <div class="recibo-saldo-label">SALDO PENDIENTE</div>
+            <div class="recibo-saldo-valor" id="r-saldo">$ 0.00</div>
+        </div>
+    </div>
+    <div class="recibo-footer">SISTEMA SAM · GESTIÓN DE COBRANZA · GRACIAS POR SU PAGO</div>
+</div>
+
+<div id="toast"></div>
+<script>
+// FIREBASE
+const firebaseConfig = {
+    apiKey:"AIzaSyCMsogo0q4Dnfekl8yo1L3lNX5Nq4uDSCE",
+    authDomain:"samsow-ec106.firebaseapp.com",
+    projectId:"samsow-ec106",
+    appId:"1:357978468958:web:aae1c84c9e84744e5f3acf"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// ESTADO GLOBAL
+let pinIngresado="", pinMaster="2306", esModoAdmin=false;
+let uSesion=null, cliActivo=null, uActivoAdmin=null;
+let timerInterval, todosClientes=[], comprobanteActual=null;
+let abonoActivoIdx=null, abonoActivoData=null;
+let swRegistration=null;
+
+// CONFIG NOTIF
+function getCfgNotif(){ try{ return JSON.parse(localStorage.getItem('sam_notif_cfg')||'{}'); }catch(e){return{};} }
+function saveCfgNotif(c){ localStorage.setItem('sam_notif_cfg',JSON.stringify(c)); }
+function getCfg(k,d){ const c=getCfgNotif(); return c[k]!==undefined?c[k]:d; }
+
+// SERVICE WORKER
+async function registrarSW(){
+    if(!('serviceWorker' in navigator)) return actualizarSwBadge('no-soporte');
+    try {
+        const swSource = `
+            self.addEventListener('install', e => { self.skipWaiting(); });
+            self.addEventListener('activate', e => { e.waitUntil(clients.claim()); });
+            self.addEventListener('push', e => {
+                const data = e.data ? e.data.json() : {};
+                e.waitUntil(
+                    self.registration.showNotification(data.title || 'SAM Cobranza', {
+                        body: data.body || 'Tienes cobros pendientes hoy',
+                        tag: data.tag || 'sam-notif',
+                        requireInteraction: true
+                    })
+                );
+            });
+            self.addEventListener('notificationclick', e => {
+                e.notification.close();
+                e.waitUntil(
+                    clients.matchAll({ type:'window', includeUncontrolled:true }).then(cs => {
+                        if(cs.length > 0){ cs[0].focus(); cs[0].postMessage({ type:'OPEN_NOTIF' }); }
+                        else clients.openWindow('/');
+                    })
+                );
+            });
+        `;
+        const blob = new Blob([swSource], { type:'application/javascript' });
+        const swUrl = URL.createObjectURL(blob);
+        swRegistration = await navigator.serviceWorker.register(swUrl, { scope:'/' });
+        actualizarSwBadge('registrado');
+        navigator.serviceWorker.addEventListener('message', e => {
+            if(e.data && e.data.type === 'OPEN_NOTIF') mostrarPanelNotif();
+        });
+        return swRegistration;
+    } catch(err){
+        actualizarSwBadge('limitado');
+    }
+}
+
+function actualizarSwBadge(estado){
+    const badge = document.getElementById('sw-badge');
+    const txt = document.getElementById('sw-status-txt');
+    if(!badge) return;
+    const map = {
+        'registrado': { cls:'activo', tx:'Notificaciones en segundo plano: ACTIVAS' },
+        'limitado':   { cls:'',       tx:'Modo limitado (app debe estar abierta)' },
+        'no-soporte': { cls:'',       tx:'Tu navegador no soporta segundo plano' },
+    };
+    const m = map[estado] || { cls:'', tx:'Verificando...' };
+    badge.className = ''; badge.id = 'sw-badge';
+    if(m.cls) badge.classList.add(m.cls);
+    txt.innerText = m.tx;
+}
+
+async function toggleSW(){
+    const activo = document.getElementById('cfg-sw-activo').checked;
+    if(activo){
+        if('Notification' in window){
+            const perm = await Notification.requestPermission();
+            if(perm !== 'granted'){
+                mostrarToast("⚠ Permiso de notificaciones denegado");
+                document.getElementById('cfg-sw-activo').checked = false;
+                return;
+            }
+        }
+        await registrarSW();
+        programarNotifDiaria();
+        mostrarToast("✅ Notificaciones en segundo plano activadas");
+    } else {
+        if(swRegistration){ await swRegistration.unregister(); swRegistration=null; }
+        actualizarSwBadge('limitado');
+        mostrarToast("Notificaciones desactivadas");
+    }
+}
+
+function programarNotifDiaria(){
+    saveCfgNotif({ ...getCfgNotif(), swActivo:true });
+    if(window._notifInterval) clearInterval(window._notifInterval);
+    window._notifInterval = setInterval(()=>{
+        const ahora = new Date();
+        const horaActual = `${ahora.getHours().toString().padStart(2,'0')}:${ahora.getMinutes().toString().padStart(2,'0')}`;
+        const horaConfig = getCfg('horaEnvio','08:00');
+        const yaEnviado = localStorage.getItem('sam_ultima_notif') === ahora.toDateString();
+        if(horaActual === horaConfig && !yaEnviado && uSesion){
+            localStorage.setItem('sam_ultima_notif', ahora.toDateString());
+            ejecutarEnvioAutomatico();
+        }
+    }, 60000);
+}
+
+function ejecutarEnvioAutomatico(){
+    const modo = getCfg('modoNotif','preguntar');
+    const grupos = calcularGruposNotif();
+    const total = grupos.recuerdo.length + grupos.hoy.length + grupos.atrasado.length;
+    if(total === 0) return;
+    if(modo === 'auto'){
+        grupos.hoy.forEach(c=>dispararWA(c,2));
+        grupos.recuerdo.forEach(c=>dispararWA(c,1));
+        grupos.atrasado.forEach(c=>dispararWA(c,3));
+        mostrarNotifNativa(`📲 ${total} mensajes de cobranza enviados`);
+        mostrarToast(`✅ ${total} notificaciones enviadas automáticamente`);
+    } else {
+        mostrarNotifNativa(`Tienes ${total} cliente${total>1?'s':''} pendiente${total>1?'s':''} hoy`);
+        mostrarPanelNotif();
+    }
+}
+
+function mostrarNotifNativa(msg){
+    if('Notification' in window && Notification.permission === 'granted'){
+        new Notification('SAM Cobranza', { body:msg, tag:'sam-cobro-'+Date.now() });
+    }
+}
+
+// TECLADO
+function abrirTeclado(admin){
+    esModoAdmin=admin;
+    document.getElementById('keypad-box').style.display='flex';
+    document.getElementById('mode-text').innerText=admin?'ADMIN':'ACCESO';
+}
+function teclear(n){
+    if(n==='C') pinIngresado="";
+    else if(pinIngresado.length<4) pinIngresado+=n;
+    document.getElementById('pin-dots').innerText="•".repeat(pinIngresado.length);
+}
+async function validar(){
+    if(esModoAdmin && pinIngresado===pinMaster){ iniciarSesion('admin'); }
+    else if(!esModoAdmin){
+        const q=await db.collection("usuarios").where("pin","==",pinIngresado).get();
+        if(!q.empty){
+            const user=q.docs[0].data();
+            const hoy=new Date().toISOString().split('T')[0];
+            if(user.status==='desactivado'||(user.vence&&hoy>user.vence)){
+                alert("ACCESO DENEGADO / EXPIRADO");
+            } else {
+                uSesion={...user,id:q.docs[0].id};
+                iniciarSesion('user');
+            }
+        } else alert("PIN INCORRECTO");
+    }
+    pinIngresado="";
+    document.getElementById('pin-dots').innerText="";
+}
+
+// SESIÓN
+function iniciarSesion(tipo){
+    document.getElementById('screen-splash').style.display='none';
+    if(tipo==='admin'){
+        document.getElementById('p-admin').style.display='block';
+        cargarUsuariosAdmin();
+    } else {
+        document.getElementById('p-user').style.display='block';
+        document.getElementById('nom-u-nav').innerText=uSesion.nombre;
+        document.getElementById('cfg-dias-recuerdo').value=getCfg('diasRecuerdo',2);
+        document.getElementById('cfg-dias-atraso').value=getCfg('diasAtraso',1);
+        document.getElementById('cfg-modo-notif').value=getCfg('modoNotif','preguntar');
+        document.getElementById('cfg-hora-envio').value=getCfg('horaEnvio','08:00');
+        document.getElementById('cfg-sw-activo').checked=getCfg('swActivo',false);
+        cargarClientes();
+        if(getCfg('swActivo',false)){
+            registrarSW().then(()=>programarNotifDiaria());
+        } else {
+            actualizarSwBadge('limitado');
+        }
+    }
+    const startTime=Date.now();
+    const limit=parseInt(document.getElementById('session-limit').value);
+    timerInterval=setInterval(()=>{
+        const diff=Math.floor((Date.now()-startTime)/1000);
+        const el=document.getElementById('timer-display');
+        if(el) el.innerText=`${Math.floor(diff/60).toString().padStart(2,'0')}:${(diff%60).toString().padStart(2,'0')}`;
+    },1000);
+    setTimeout(()=>location.reload(),limit);
+}
+
+// CLIENTES
+function cargarClientes(){
+    db.collection("clientes").where("creadoPor","==",uSesion.nombre).onSnapshot(snap=>{
+        todosClientes=[];
+        let h="", total=0;
+        const hoy=new Date().toISOString().split('T')[0];
+        snap.forEach(doc=>{
+            const c=doc.data(); c.id=doc.id;
+            todosClientes.push(c); total+=c.saldo;
+            let color="var(--green)";
+            if(c.saldo>0&&c.fechaCobro&&c.fechaCobro<hoy) color="var(--red)";
+            else if(c.saldo>0&&c.fechaCobro&&c.fechaCobro===hoy) color="#FF9500";
+            h+=`<div class="card" onclick='abrirFicha(${sj(c)})'>
+                <div style="display:flex;align-items:center">
+                    <span class="status-dot" style="background:${color}"></span>
+                    <div><b>${c.nombre}</b><br>
+                    <small>${c.prod||'General'} · ${c.frecuencia||''}</small></div>
+                </div>
+                <div style="text-align:right">
+                    <b>$${c.saldo.toFixed(2)}</b>
+                    ${c.cuota?`<br><small style="color:#aaa">$${parseFloat(c.cuota).toFixed(2)}/cuota</small>`:''}
+                </div></div>`;
+        });
+        document.getElementById('u-total').innerText=`$ ${total.toFixed(2)}`;
+        document.getElementById('lista-clientes').innerHTML=h||
+            '<p style="text-align:center;color:#bbb;padding:30px">Sin clientes registrados</p>';
+        const atras=todosClientes.filter(c=>c.saldo>0&&c.fechaCobro&&c.fechaCobro<hoy).length;
+        const pagaHoy=todosClientes.filter(c=>c.saldo>0&&c.fechaCobro===hoy).length;
+        document.getElementById('resumen-estados').innerText=
+            (pagaHoy?pagaHoy+' pagan hoy · ':'')+( atras?atras+' atrasados':'');
+        if(!window._notifChecked){
+            window._notifChecked=true;
+            setTimeout(()=>{ if(getCfg('modoNotif','preguntar')!=='auto') verificarNotificaciones(); },900);
+        }
+    });
+}
+
+function sj(o){ return JSON.stringify(o).replace(/'/g,"&#39;"); }
+
+function abrirFicha(c){
+    cliActivo=c;
+    document.getElementById('det-cli-nom').innerText=c.nombre;
+    document.getElementById('det-cli-fcobro').innerText=c.fechaCobro||"---";
+    document.getElementById('det-cli-prod').innerText=c.prod||"---";
+    document.getElementById('det-cli-dir').innerText=c.direccion||"---";
+    document.getElementById('det-cli-frec').innerText=c.frecuencia||"---";
+    document.getElementById('det-cli-cuota').innerText=c.cuota?`$ ${parseFloat(c.cuota).toFixed(2)}`:"---";
+    document.getElementById('det-cli-saldo').innerText=`$ ${c.saldo.toFixed(2)}`;
+    renderizarHistorial(c);
+    openM('m-det-cliente');
+}
+
+function renderizarHistorial(c){
+    const hist=(c.historial||[]).slice().reverse();
+    let hHTML="";
+    hist.forEach((p,i)=>{
+        const realIdx=(c.historial||[]).length-1-i;
+        const num=p.numComp||("SAM-"+(c.id.slice(-6)+i).toUpperCase());
+        hHTML+=`<div class="hist-item" onclick='abrirDetalleAbono(${sj(p)},${realIdx},${sj(c)})'>
+            <div class="hist-item-left">
+                <b>${p.fecha}</b>${p.hora?' · '+p.hora:''}
+                <div class="hist-hint">📄 ${num} · toca para ver / editar</div>
+            </div>
+            <div class="hist-item-right">+$ ${parseFloat(p.monto).toFixed(2)}</div>
+        </div>`;
+    });
+    document.getElementById('det-cli-hist').innerHTML=hHTML||
+        '<p style="font-size:12px;color:#bbb;text-align:center;padding:10px">Sin movimientos.</p>';
+}
+
+// DETALLE + EDICIÓN DE ABONO
+function abrirDetalleAbono(pago, idx, cli){
+    abonoActivoIdx=idx;
+    abonoActivoData=pago;
+    if(cli && cli.id) cliActivo=cli;
+    const num=pago.numComp||("SAM-HIST-"+(cli||cliActivo).id.slice(-6).toUpperCase());
+    const saldoDes=pago.saldoDespues!==undefined?pago.saldoDespues:(cli||cliActivo).saldo;
+    document.getElementById('ad-monto-display').innerText=`$ ${parseFloat(pago.monto).toFixed(2)}`;
+    document.getElementById('ad-fecha-display').innerText=pago.fecha+(pago.hora?' · '+pago.hora:'');
+    document.getElementById('ad-num-display').innerText=num;
+    document.getElementById('ad-cliente').innerText=(cli||cliActivo).nombre;
+    document.getElementById('ad-saldo').innerText=`$ ${parseFloat(saldoDes).toFixed(2)}`;
+    document.getElementById('ad-nuevo-monto').value=parseFloat(pago.monto).toFixed(2);
+    closeM();
+    openM('m-abono-detalle');
+}
+
+function verComprobanteDesdeDetalle(){
+    const p=abonoActivoData; const cli=cliActivo;
+    const num=p.numComp||("SAM-HIST-"+cli.id.slice(-6).toUpperCase());
+    const saldoDes=p.saldoDespues!==undefined?p.saldoDespues:cli.saldo;
+    closeM();
+    mostrarComprobante({monto:parseFloat(p.monto),saldo:saldoDes,fecha:p.fecha,hora:p.hora||"---",num,cliente:cli});
+}
+
+function reenviarWADesdeDetalle(){
+    const p=abonoActivoData; const cli=cliActivo;
+    const num=p.numComp||("SAM-HIST-"+cli.id.slice(-6).toUpperCase());
+    const saldoDes=p.saldoDespues!==undefined?p.saldoDespues:cli.saldo;
+    document.getElementById('r-cobrador').innerText=uSesion?uSesion.nombre:'---';
+    document.getElementById('r-cliente').innerText=cli.nombre;
+    document.getElementById('r-prod').innerText=cli.prod||'---';
+    document.getElementById('r-fecha').innerText=p.fecha;
+    document.getElementById('r-hora').innerText=p.hora||'---';
+    document.getElementById('r-num').innerText=num;
+    document.getElementById('r-monto').innerText=`$ ${parseFloat(p.monto).toFixed(2)}`;
+    document.getElementById('r-saldo').innerText=`$ ${parseFloat(saldoDes).toFixed(2)}`;
+    comprobanteActual={monto:parseFloat(p.monto),saldo:saldoDes,fecha:p.fecha,hora:p.hora||'---',num,cliente:cli};
+    abrirWATexto(cli);
+    mostrarToast("📲 WhatsApp abierto");
+}
+
+async function guardarEdicionAbono(){
+    const nuevoMonto=parseFloat(document.getElementById('ad-nuevo-monto').value);
+    if(!nuevoMonto||nuevoMonto<=0){ mostrarToast("Monto inválido"); return; }
+    const montoAnterior=parseFloat(abonoActivoData.monto);
+    const diferencia=nuevoMonto-montoAnterior;
+    const nuevoSaldo=cliActivo.saldo-diferencia;
+    const histActual=[...(cliActivo.historial||[])];
+    histActual[abonoActivoIdx]={
+        ...histActual[abonoActivoIdx],
+        monto:nuevoMonto,
+        saldoDespues:(histActual[abonoActivoIdx].saldoDespues||cliActivo.saldo)-diferencia,
+        editado:true,
+        fechaEdicion:new Date().toLocaleDateString('es-ES')
+    };
+    try {
+        await db.collection("clientes").doc(cliActivo.id).update({
+            saldo:nuevoSaldo, historial:histActual
+        });
+        mostrarToast("✅ Abono actualizado · Saldo recalculado");
+        cliActivo.saldo=nuevoSaldo;
+        cliActivo.historial=histActual;
+        closeM();
+        setTimeout(()=>{ abrirFicha(cliActivo); },200);
+    } catch(e){ mostrarToast("Error: "+e.message); }
+}
+
+async function eliminarAbonoIndividual(){
+    if(!confirm(`¿Eliminar este abono de $${parseFloat(abonoActivoData.monto).toFixed(2)}?`)) return;
+    const montoAbono=parseFloat(abonoActivoData.monto);
+    const nuevoSaldo=cliActivo.saldo+montoAbono;
+    const histActual=[...(cliActivo.historial||[])];
+    histActual.splice(abonoActivoIdx,1);
+    try {
+        await db.collection("clientes").doc(cliActivo.id).update({
+            saldo:nuevoSaldo, historial:histActual
+        });
+        mostrarToast("Abono eliminado · Saldo ajustado");
+        cliActivo.saldo=nuevoSaldo;
+        cliActivo.historial=histActual;
+        closeM();
+        setTimeout(()=>{ abrirFicha(cliActivo); },200);
+    } catch(e){ mostrarToast("Error: "+e.message); }
+}
+
+// REGISTRAR NUEVO ABONO
+function registrarAbono(){
+    const m=parseFloat(document.getElementById('input-abono').value);
+    if(!m||m<=0){ mostrarToast("Ingresa un monto válido"); return; }
+    const nuevoSaldo=cliActivo.saldo-m;
+    const ahora=new Date();
+    const fechaStr=ahora.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'});
+    const horaStr=ahora.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+    const numComp="SAM-"+Date.now().toString().slice(-8);
+    const entrada={monto:m,fecha:fechaStr,hora:horaStr,numComp,saldoDespues:nuevoSaldo};
+    db.collection("clientes").doc(cliActivo.id).update({
+        saldo:nuevoSaldo,
+        historial:firebase.firestore.FieldValue.arrayUnion(entrada)
+    }).then(()=>{
+        closeM();
+        document.getElementById('input-abono').value="";
+        cliActivo.saldo=nuevoSaldo;
+        mostrarComprobante({monto:m,saldo:nuevoSaldo,fecha:fechaStr,hora:horaStr,num:numComp,cliente:cliActivo});
+    });
+}
+
+// COMPROBANTE
+function mostrarComprobante({monto,saldo,fecha,hora,num,cliente}){
+    const cli=cliente||cliActivo;
+    comprobanteActual={monto,saldo,fecha,hora,num,cliente:cli};
+    document.getElementById('r-cobrador').innerText=uSesion?uSesion.nombre:'---';
+    document.getElementById('r-cliente').innerText=cli.nombre;
+    document.getElementById('r-prod').innerText=cli.prod||'---';
+    document.getElementById('r-fecha').innerText=fecha;
+    document.getElementById('r-hora').innerText=hora;
+    document.getElementById('r-num').innerText=num;
+    document.getElementById('r-monto').innerText=`$ ${monto.toFixed(2)}`;
+    document.getElementById('r-saldo').innerText=`$ ${saldo.toFixed(2)}`;
+    const cBox=document.getElementById('comprobante-canvas-box');
+    cBox.innerHTML='<div style="padding:30px;text-align:center;color:#aaa;font-size:13px;font-weight:700">Generando comprobante...</div>';
+    document.getElementById('comprobante-wrap').style.display='flex';
+    setTimeout(()=>{
+        html2canvas(document.getElementById('recibo-visual'),{
+            scale:2,useCORS:true,backgroundColor:'#ffffff',logging:false
+        }).then(canvas=>{
+            cBox.innerHTML=''; cBox.appendChild(canvas);
+        });
+    },150);
+}
+
+function descargarComprobante(){
+    const canvas=document.querySelector('#comprobante-canvas-box canvas');
+    if(!canvas){ mostrarToast("Espera que cargue"); return; }
+    const link=document.createElement('a');
+    const nom=comprobanteActual?comprobanteActual.cliente.nombre.replace(/\s+/g,'_'):'cliente';
+    link.download=`comprobante_SAM_${nom}_${Date.now()}.png`;
+    link.href=canvas.toDataURL('image/png'); link.click();
+}
+
+async function compartirWhatsApp(){
+    const canvas=document.querySelector('#comprobante-canvas-box canvas');
+    if(!canvas){ mostrarToast("Espera que cargue"); return; }
+    const cli=comprobanteActual?comprobanteActual.cliente:cliActivo;
+    if(navigator.share&&navigator.canShare){
+        try{
+            await new Promise((res,rej)=>{ canvas.toBlob(async blob=>{
+                try{
+                    const f=new File([blob],'comprobante_SAM.png',{type:'image/png'});
+                    if(navigator.canShare({files:[f]})){
+                        await navigator.share({title:'Comprobante SAM',files:[f]}); res();
+                    } else rej();
+                }catch(e){rej(e);}
+            },'image/png'); });
+            return;
+        }catch(e){}
+    }
+    abrirWATexto(cli);
+}
+
+function abrirWATexto(cli){
+    const c=cli||(comprobanteActual?comprobanteActual.cliente:cliActivo);
+    const tel=c&&c.prefijo&&c.telefono?`${c.prefijo}${c.telefono}`:'';
+    const msg=`✅ *COMPROBANTE DE PAGO - SAM*\n\n`+
+        `👤 Cliente: ${c?c.nombre:'---'}\n`+
+        `📦 Producto: ${c?(c.prod||'---'):'---'}\n`+
+        `💵 Monto pagado: ${document.getElementById('r-monto').innerText}\n`+
+        `📅 Fecha: ${document.getElementById('r-fecha').innerText}\n`+
+        `⏰ Hora: ${document.getElementById('r-hora').innerText}\n`+
+        `🔖 N° Comp: ${document.getElementById('r-num').innerText}\n`+
+        `💳 Saldo pendiente: ${document.getElementById('r-saldo').innerText}\n\n`+
+        `_Gracias por su pago - Sistema SAM_`;
+const url=tel?`https://wa.me/${tel}?text=${encodeURIComponent(msg)}`:`https://wa.me/?text=${encodeURIComponent(msg)}`;
+    window.open(url,'_blank');
+}
+
+function cerrarComprobante(){
+    document.getElementById('comprobante-wrap').style.display='none';
+    comprobanteActual=null;
+}
+</script>
+<script>
+// NOTIFICACIONES
+function calcularGruposNotif(){
+    const hoy=new Date();
+    const diasR=parseInt(getCfg('diasRecuerdo',2));
+    const diasA=parseInt(getCfg('diasAtraso',1));
+    const grupos={recuerdo:[],hoy:[],atrasado:[]};
+    todosClientes.forEach(c=>{
+        if(!c.telefono||c.saldo<=0||!c.fechaCobro) return;
+        const fc=new Date(c.fechaCobro+'T00:00:00');
+        const diff=Math.round((fc-hoy)/(1000*60*60*24));
+        if(diff===0) grupos.hoy.push(c);
+        else if(diff>0&&diff<=diasR) grupos.recuerdo.push({...c,_diff:diff});
+        else if(diff<0&&Math.abs(diff)>=diasA) grupos.atrasado.push({...c,_diff:Math.abs(diff)});
+    });
+    return grupos;
+}
+
+function verificarNotificaciones(){
+    const grupos=calcularGruposNotif();
+    const total=grupos.recuerdo.length+grupos.hoy.length+grupos.atrasado.length;
+    if(total===0) return;
+    mostrarPanelNotif(grupos);
+}
+
+function mostrarPanelNotif(grupos){
+    if(!grupos) grupos=calcularGruposNotif();
+    const total=grupos.recuerdo.length+grupos.hoy.length+grupos.atrasado.length;
+    if(total===0){ mostrarToast("Sin notificaciones pendientes"); return; }
+    document.getElementById('notif-subtitle').innerText=
+        `${total} cliente${total>1?'s necesitan':' necesita'} notificación`;
+    let html='';
+    if(grupos.hoy.length){
+        html+=`<div class="notif-group-title" style="color:#FF9500">
+                   ✅ PAGO HOY (${grupos.hoy.length})
+               </div>`;
+        grupos.hoy.forEach((c,i)=>{ html+=buildNC(c,2,`h${i}`,''); });
+    }
+    if(grupos.recuerdo.length){
+        html+=`<div class="notif-group-title" style="color:var(--green)">
+                   📅 RECORDATORIO (${grupos.recuerdo.length})
+               </div>`;
+        grupos.recuerdo.forEach((c,i)=>{
+            html+=buildNC(c,1,`r${i}`,`vence en ${c._diff} día${c._diff>1?'s':''}`);
+        });
+    }
+    if(grupos.atrasado.length){
+        html+=`<div class="notif-group-title" style="color:var(--red)">
+                   🔴 ATRASADOS (${grupos.atrasado.length})
+               </div>`;
+        grupos.atrasado.forEach((c,i)=>{
+            html+=buildNC(c,3,`a${i}`,`${c._diff} día${c._diff>1?'s':''} de atraso`);
+        });
+    }
+    document.getElementById('notif-lista').innerHTML=html;
+    window._notifGrupos=grupos;
+    document.getElementById('notif-overlay').style.display='flex';
+}
+
+function buildNC(c,tipo,id,extra){
+    const col=tipo===2?'#FF9500':tipo===1?'var(--green)':'var(--red)';
+    return `<div class="notif-cli-card">
+        <div style="flex:1;min-width:0">
+            <b style="font-size:13px">${c.nombre}</b><br>
+            <small style="color:#888">
+                ${c.prod||'General'} · $${c.saldo.toFixed(2)}
+                ${extra?` · <span style="color:${col};font-weight:900">${extra}</span>`:''}
+            </small>
+        </div>
+        <button class="notif-send-btn" id="nb-${id}"
+            onclick="sendN(${sj(c)},${tipo},'nb-${id}')">
+            📲 ENVIAR
+        </button>
+    </div>`;
+}
+
+function sendN(c,t,bid){
+    dispararWA(c,t);
+    const b=document.getElementById(bid);
+    if(b){ b.innerText="✓ ENVIADO"; b.classList.add('sent'); b.disabled=true; }
+}
+
+function enviarTodas(){
+    const g=window._notifGrupos||{};
+    let n=0;
+    (g.hoy||[]).forEach(c=>{ dispararWA(c,2); n++; });
+    (g.recuerdo||[]).forEach(c=>{ dispararWA(c,1); n++; });
+    (g.atrasado||[]).forEach(c=>{ dispararWA(c,3); n++; });
+    cerrarNotif();
+    mostrarToast(`📲 ${n} WhatsApp${n>1?'s':''} abiertos`);
+}
+
+function cerrarNotif(){
+    document.getElementById('notif-overlay').style.display='none';
+}
+
+function probarNotifAhora(){
+    closeM();
+    setTimeout(()=>mostrarPanelNotif(),300);
+}
+
+function dispararWA(c,tipo){
+    const nombre=c.nombre;
+    const B="Que Dios le bendiga y le conceda muchos éxitos en todas sus labores. ";
+    let msg="";
+    if(tipo===1){
+        msg=`Hola ${nombre}, reciba un cordial saludo. ${B}`+
+            `Le escribimos para recordarle que se acerca su próxima fecha de pago. `+
+            `¡Gracias por su atención!`;
+    } else if(tipo===2){
+        msg=`Hola ${nombre}, reciba un cordial saludo. ${B}`+
+            `Le recordamos que el día de hoy corresponde realizar su abono programado. `+
+            `Estaremos atentos para ayudarle.`;
+    } else if(tipo===3){
+        msg=`Estimado(a) ${nombre}, reciba un cordial saludo. ${B}`+
+            `Notamos que su cuenta presenta un retraso; le recordamos la importancia `+
+            `de mantenerse al día. Quedamos a la espera de su respuesta.`;
+    }
+    window.open(
+        `https://wa.me/${c.prefijo}${c.telefono}?text=${encodeURIComponent(msg)}`,
+        '_blank'
+    );
+}
+
+function enviarWA(tipo){ dispararWA(cliActivo,tipo); }
+
+function guardarConfigNotif(){
+    saveCfgNotif({
+        diasRecuerdo: parseInt(document.getElementById('cfg-dias-recuerdo').value)||2,
+        diasAtraso:   parseInt(document.getElementById('cfg-dias-atraso').value)||1,
+        modoNotif:    document.getElementById('cfg-modo-notif').value,
+        horaEnvio:    document.getElementById('cfg-hora-envio').value,
+        swActivo:     document.getElementById('cfg-sw-activo').checked
+    });
+    if(document.getElementById('cfg-sw-activo').checked) programarNotifDiaria();
+    closeM();
+    mostrarToast("✅ Configuración guardada");
+}
+
+// CUOTA
+function calcularCuota(){
+    const tot=parseFloat(document.getElementById('nc-tot').value)||0;
+    const ini=parseFloat(document.getElementById('nc-ini').value)||0;
+    const n=parseInt(document.getElementById('nc-ncuotas').value)||0;
+    if(tot>0&&n>0){
+        document.getElementById('cuota-valor').innerText=`$ ${((tot-ini)/n).toFixed(2)}`;
+        document.getElementById('cuota-preview').style.display='block';
+    } else {
+        document.getElementById('cuota-preview').style.display='none';
+    }
+}
+
+// CRUD CLIENTES
+function crearCli(){
+    const tot=parseFloat(document.getElementById('nc-tot').value)||0;
+    const ini=parseFloat(document.getElementById('nc-ini').value)||0;
+    const n=parseInt(document.getElementById('nc-ncuotas').value)||0;
+    const cuota=n>0?((tot-ini)/n).toFixed(2):null;
+    db.collection("clientes").add({
+        nombre:       document.getElementById('nc-nom').value,
+        prod:         document.getElementById('nc-prod').value,
+        prefijo:      document.getElementById('nc-pref').value,
+        telefono:     document.getElementById('nc-tel').value,
+        saldo:        tot-ini,
+        cuota:        cuota,
+        numeroCuotas: n||null,
+        direccion:    document.getElementById('nc-dir').value,
+        frecuencia:   document.getElementById('nc-frec').value,
+        fechaCobro:   document.getElementById('nc-fecha').value,
+        creadoPor:    uSesion.nombre,
+        historial:    []
+    }).then(()=>{
+        closeM();
+        ['nc-nom','nc-prod','nc-tel','nc-tot',
+         'nc-dir','nc-fecha','nc-ncuotas'].forEach(id=>{
+            document.getElementById(id).value='';
+        });
+        document.getElementById('nc-ini').value='0';
+        document.getElementById('cuota-preview').style.display='none';
+        mostrarToast("✅ Cliente guardado");
+    });
+}
+
+function eliminarClienteCompleto(){
+    if(confirm(`¿Eliminar a ${cliActivo.nombre}?`)){
+        db.collection("clientes").doc(cliActivo.id).delete().then(()=>{
+            closeM();
+            mostrarToast("Cliente eliminado");
+        });
+    }
+}
+
+// CRUD USUARIOS
+function cargarUsuariosAdmin(){
+    db.collection("usuarios").onSnapshot(snap=>{
+        let h="";
+        snap.forEach(doc=>{
+            const u=doc.data(); u.id=doc.id;
+            h+=`<div class="card" onclick='abrirEdicionU(${sj(u)})'>
+                    <span>
+                        <span class="status-dot"
+                            style="background:${u.status==='activo'?'var(--green)':'var(--red)'}">
+                        </span>
+                        <b>${u.nombre}</b>
+                    </span>
+                    <small>PIN: ${u.pin}</small>
+                </div>`;
+        });
+        document.getElementById('lista-usuarios-admin').innerHTML=h;
+    });
+}
+
+function abrirEdicionU(u){
+    uActivoAdmin=u;
+    document.getElementById('ed-u-nom').value=u.nombre;
+    document.getElementById('ed-u-pin').value=u.pin;
+    document.getElementById('ed-u-status').value=u.status;
+    document.getElementById('ed-u-vence').value=u.vence||'';
+    openM('m-edit-u');
+}
+
+function actualizarU(){
+    db.collection("usuarios").doc(uActivoAdmin.id).update({
+        nombre: document.getElementById('ed-u-nom').value,
+        pin:    document.getElementById('ed-u-pin').value,
+        status: document.getElementById('ed-u-status').value,
+        vence:  document.getElementById('ed-u-vence').value
+    }).then(()=>{ closeM(); mostrarToast("✅ Guardado"); });
+}
+
+function crearU(){
+    db.collection("usuarios").add({
+        nombre: document.getElementById('nu-nom').value,
+        pin:    document.getElementById('nu-pin').value,
+        status: 'activo',
+        vence:  document.getElementById('nu-vence').value
+    }).then(()=>{
+        closeM();
+        ['nu-nom','nu-pin','nu-vence'].forEach(id=>{
+            document.getElementById(id).value='';
+        });
+        mostrarToast("✅ Cobrador creado");
+    });
+}
+
+function eliminarU(){
+    if(confirm("¿Eliminar cobrador?")){
+        db.collection("usuarios").doc(uActivoAdmin.id).delete().then(closeM);
+    }
+}
+
+// UTILS
+function openM(id){ document.getElementById(id).style.display='flex'; }
+function closeM(){ document.querySelectorAll('.modal').forEach(m=>m.style.display='none'); }
+
+function mostrarToast(msg){
+    const t=document.getElementById('toast');
+    t.innerText=msg;
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'),2800);
+}
+
+// Cerrar modal al tocar fondo oscuro
+document.querySelectorAll('.modal').forEach(m=>{
+    m.addEventListener('click',function(e){
+        if(e.target===this) closeM();
+    });
+});
+
+</script>
+</body>
+</html>
